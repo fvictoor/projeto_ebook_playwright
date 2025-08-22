@@ -29,8 +29,13 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Executar testes Playwright
+        id: playwright_tests
         run: npx playwright test
         continue-on-error: true
+      
+      - name: Retry testes com falha
+        if: steps.playwright_tests.outcome == 'failure'
+        run: npx playwright test --retries=2
 
       - name: Fazer upload dos logs
         if: always()
@@ -45,7 +50,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          node ./libs/report-webhook.js ./logs/results/output.xml --titulo "${{ github.event.inputs.titulo_execucao }}"
+          node ./libs/Webhook/report-webhook.js ./logs/results/output.xml --titulo "${{ github.event.inputs.titulo_execucao }}"
 
       - name: Verificar resultado final dos testes
         if: steps.playwright_tests.outcome == 'failure'
