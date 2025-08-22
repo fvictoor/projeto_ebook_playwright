@@ -2,6 +2,11 @@ name: Playwright Tests
 
 on:
   workflow_dispatch:  # Permite execução manual do workflow
+    inputs:
+      titulo_execucao:
+        description: 'Título personalizado para o Webhook'
+        required: true
+        default: '🚀 Relatório de Testes Automatizados com Playwright'
 
 jobs:
   test:
@@ -43,6 +48,12 @@ jobs:
           name: logs-execucao-${{ env.TIMESTAMP }}
           path: ./logs
       
+      - name: Enviar relatório Webhook
+        if: always()
+        continue-on-error: true
+        run: |
+          node ./libs/report-webhook.js ./logs/results/output.xml ./test-results/rerun.xml --titulo "${{ github.event.inputs.titulo_execucao }}"
+
       - name: Verificar resultado dos testes
         if: steps.playwright_tests.outcome == 'failure'
         run: exit 1  # Falha o workflow se os testes falharem após retry
