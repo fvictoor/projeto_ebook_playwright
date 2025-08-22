@@ -1,0 +1,64 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Permite execução manual do workflow
+
+jobs:
+  test:
+    name: 'Testes Playwright'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+      
+      - name: Instalar dependências
+        run: npm ci
+      
+      - name: Instalar Playwright Browsers
+        run: npx playwright install --with-deps
+      
+      - name: Executar testes Playwright
+        id: playwright_tests
+        run: npx playwright test
+        continue-on-error: true  # Continua mesmo se os testes falharem
+      
+      - name: Retry testes com falha
+        if: steps.playwright_tests.outcome == 'failure'
+        run: npx playwright test --retries=2
+      
+      - name: Gerar relatório HTML
+        if: always()
+        run: npx playwright show-report --reporter=html
+      
+      - name: Upload relatório de testes
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+      
+      - name: Upload logs de teste
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-logs
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 30
+      
+      - name: Verificar resultado dos testes
+        if: steps.playwright_tests.outcome == 'failure'
+        run: exit 1  # Falha o workflow se os testes falharem após retry
