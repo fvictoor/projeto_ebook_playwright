@@ -38,7 +38,7 @@ jobs:
       
       - name: Upload relatório de testes
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
@@ -46,7 +46,7 @@ jobs:
       
       - name: Upload logs de teste
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-logs
           path: |
