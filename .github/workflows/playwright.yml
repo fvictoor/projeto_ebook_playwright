@@ -41,7 +41,7 @@ jobs:
         if: always()
         with:
           name: logs-execucao-${{ env.TIMESTAMP }}
-          path: ./log
+          path: ./logs
       
       - name: Verificar resultado dos testes
         if: steps.playwright_tests.outcome == 'failure'
