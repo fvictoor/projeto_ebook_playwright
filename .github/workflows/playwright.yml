@@ -1,7 +1,7 @@
 name: Playwright Tests
 
 on:
-  workflow_dispatch:  # Permite execução manual do workflow
+  workflow_dispatch:
     inputs:
       titulo_execucao:
         description: 'Título personalizado para o Webhook'
@@ -26,34 +26,29 @@ jobs:
         run: npm ci
       
       - name: Instalar Playwright Browsers
-        run: npx playwright install
-      
+        run: npx playwright install --with-deps
+
       - name: Executar testes Playwright
-        id: playwright_tests
         run: npx playwright test
-        continue-on-error: true  # Continua mesmo se os testes falharem
-      
-      - name: Retry testes com falha
-        if: steps.playwright_tests.outcome == 'failure'
-        run: npx playwright test --retries=2
-      
-      - name: Gerar Timestamp para o Artefato
-        if: always()
-        run: echo "TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_ENV
-
-      - name: Fazer upload dos logs de execução
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: logs-execucao-${{ env.TIMESTAMP }}
-          path: ./logs
-      
-      - name: Enviar relatório Webhook
-        if: always()
         continue-on-error: true
-        run: |
-          node ./libs/report-webhook.js ./logs/results/output.xml ./test-results/rerun.xml --titulo "${{ github.event.inputs.titulo_execucao }}"
 
-      - name: Verificar resultado dos testes
+      - name: Fazer upload dos logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-logs
+          path: ./logs 
+          retention-days: 5
+
+      - name: Enviar relatório para Webhook
+        if: always()
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: |
+          node ./libs/report-webhook.js ./logs/results/output.xml --titulo "${{ github.event.inputs.titulo_execucao }}"
+
+      - name: Verificar resultado final dos testes
         if: steps.playwright_tests.outcome == 'failure'
-        run: exit 1  # Falha o workflow se os testes falharem após retry
+        run: |
+          echo "Um ou mais testes falharam após todas as retentativas."
+          exit 1

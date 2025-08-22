@@ -10,10 +10,6 @@ const CONTEUDO_MINIMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="empty" tests="0" failures="0" time="0">
 </testsuites>`;
 
-/**
-
- * @param {string} caminho - O caminho para o arquivo XML.
- */
 function verificarOuCriarXml(caminho) {
     if (!fs.existsSync(caminho)) {
         console.log(`[AVISO] Arquivo não encontrado: ${caminho}. Criando um arquivo vazio para continuar.`);
@@ -23,10 +19,6 @@ function verificarOuCriarXml(caminho) {
     }
 }
 
-/**
- * @param {string} caminhoArquivo - O caminho para o arquivo XML.
- * @returns {object} O objeto JavaScript representando o XML.
- */
 function parseXmlReport(caminhoArquivo) {
     verificarOuCriarXml(caminhoArquivo);
     const xmlFile = fs.readFileSync(caminhoArquivo, 'utf8');
@@ -34,11 +26,6 @@ function parseXmlReport(caminhoArquivo) {
     return result.testsuites || { attr: { tests: '0', failures: '0', time: '0' }, testsuite: [] };
 }
 
-/**
- * Coleta os nomes de todos os testes que falharam.
- * @param {object} suitesData - O objeto de suítes de teste analisado.
- * @returns {string[]} Uma lista de nomes de testes que falharam.
- */
 function coletarTestesFalhos(suitesData) {
     const failedTests = [];
     const testsuites = Array.isArray(suitesData.testsuite) ? suitesData.testsuite : [suitesData.testsuite].filter(Boolean);
@@ -56,11 +43,6 @@ function coletarTestesFalhos(suitesData) {
     return failedTests;
 }
 
-/**
- * Formata uma lista de falhas para exibição.
- * @param {string[]} lista - A lista de testes falhos.
- * @returns {string} A lista formatada.
- */
 function formatarListaFalhas(lista) {
     if (!lista || lista.length === 0) {
         return "Nenhum teste falhou 🎉";
@@ -68,11 +50,6 @@ function formatarListaFalhas(lista) {
     return lista.map(item => `- ${item}`).join('\n');
 }
 
-/**
- * Converte segundos para o formato 'XmYs'.
- * @param {number | string} s - O tempo em segundos.
- * @returns {string} O tempo formatado.
- */
 function formatarTempo(s) {
     if (s === null || s === undefined) return "0m0s";
     const segundosTotais = parseFloat(s);
@@ -81,35 +58,22 @@ function formatarTempo(s) {
     return `${minutos}m${segundos}s`;
 }
 
-/**
- * Envia uma notificação para um webhook (compatível com Discord/Slack).
- * @param {string} linkWebhook - A URL do webhook.
- * @param {string} texto - O conteúdo da mensagem.
- */
 async function notificarWebhook(linkWebhook, texto) {
     if (!linkWebhook) {
-        throw new Error("A variável 'WEBHOOK_URL' não foi definida no seu arquivo .env.");
+        throw new Error("A variável 'WEBHOOK_URL' não foi definida no seu arquivo .env ou nos secrets da pipeline.");
     }
-
     const body = { content: texto };
     const headers = { 'Content-Type': 'application/json' };
 
     console.log("\nEnviando relatório para o webhook...");
     try {
-        const response = await axios.post(linkWebhook, body, { headers, timeout: 10000 });
-        if (response.status >= 200 && response.status < 300) {
-            console.log("Relatório enviado com sucesso!");
-        }
+        await axios.post(linkWebhook, body, { headers, timeout: 10000 });
+        console.log("Relatório enviado com sucesso!");
     } catch (error) {
         throw new Error(`Erro ao enviar notificação: ${error.message}`);
     }
 }
 
-/**
- * Coleta estatísticas de testes por arquivo (agindo como a "tag").
- * @param {object} suitesData - O objeto de suítes de teste.
- * @returns {object} Estatísticas agregadas por arquivo.
- */
 function coletarDadosPorArquivo(suitesData) {
     const stats = {};
     const testsuites = Array.isArray(suitesData.testsuite) ? suitesData.testsuite : [suitesData.testsuite].filter(Boolean);
@@ -131,14 +95,10 @@ function coletarDadosPorArquivo(suitesData) {
 
 async function main() {
     const argv = yargs(hideBin(process.argv))
-        .usage('Uso: node $0 <execucao_xml> <rerun_xml> [opções]')
-        .command('$0 <execucao_xml> <rerun_xml>', 'Processa logs do Playwright (JUnit), gera um relatório e envia para um webhook.', (y) => {
+        .usage('Uso: node $0 <execucao_xml> [opções]')
+        .command('$0 <execucao_xml>', 'Processa o log final do Playwright (JUnit), gera um relatório e envia para um webhook.', (y) => {
             y.positional('execucao_xml', {
-                describe: 'Caminho para o arquivo output.xml da execução principal.',
-                type: 'string',
-            })
-            .positional('rerun_xml', {
-                describe: 'Caminho para o arquivo output.xml da re-execução (rerun).',
+                describe: 'Caminho para o arquivo final output.xml.',
                 type: 'string',
             })
         })
@@ -148,45 +108,34 @@ async function main() {
             default: '📋 RELATÓRIO DE TESTES AUTOMATIZADOS',
             description: 'Título personalizado para o relatório.'
         })
-        .demandCommand(2, 'Você precisa fornecer os caminhos para os dois arquivos XML.')
+        .demandCommand(1, 'Você precisa fornecer o caminho para o arquivo XML.')
         .help()
         .argv;
 
     const { WEBHOOK_URL } = process.env;
 
     if (!WEBHOOK_URL) {
-        console.error("[ERRO] A variável WEBHOOK_URL não foi encontrada. Verifique seu arquivo .env.");
+        console.error("[ERRO] A variável WEBHOOK_URL não foi encontrada. Verifique seu arquivo .env ou os secrets da pipeline.");
         process.exit(1);
     }
     
-    console.log("Processando arquivos de resultado...");
+    console.log("Processando arquivo de resultado...");
     const resultExecucao = parseXmlReport(argv.execucao_xml);
-    const resultRerun = parseXmlReport(argv.rerun_xml);
 
+    // Coletando estatísticas
     const totalTests = parseInt(resultExecucao.attr.tests, 10) || 0;
-    const initialFailures = parseInt(resultExecucao.attr.failures, 10) || 0;
-    const passedTests = totalTests - initialFailures;
-
-    const falhasRerun = coletarTestesFalhos(resultRerun);
-    
+    const finalFailures = parseInt(resultExecucao.attr.failures, 10) || 0;
+    const passedTests = totalTests - finalFailures;
+    const falhasFinais = coletarTestesFalhos(resultExecucao);
     const dadosPorArquivo = coletarDadosPorArquivo(resultExecucao);
+    const tempoTotal_s = parseFloat(resultExecucao.attr.time) || 0;
 
-    const tempoExecucao_s = parseFloat(resultExecucao.attr.time) || 0;
-    const tempoRerun_s = parseFloat(resultRerun.attr.time) || 0;
-    const tempoTotal_s = tempoExecucao_s + tempoRerun_s;
-
+    // Montando o corpo do relatório
     console.log("Montando o corpo do relatório...");
     const infoGerais = {
         "🚀 Qtd. Total de Testes": totalTests,
-        "✅ Qtd. Testes Aprovados (final)": passedTests,
-        "❌ Qtd. Testes Reprovados (inicial)": initialFailures,
-        "🔁 Qtd. Testes que persistiram no erro (Rerun)": falhasRerun.length,
-    };
-
-    const tempos = {
-        "🕐 Tempo Execução Principal": formatarTempo(tempoExecucao_s),
-        "🔄 Tempo Execução Rerun": formatarTempo(tempoRerun_s),
-        "⏳ Tempo Total (soma)": formatarTempo(tempoTotal_s),
+        "✅ Qtd. Testes Aprovados": passedTests,
+        "❌ Qtd. Testes Reprovados (final)": finalFailures,
     };
 
     let partesRelatorio = [`*${argv.titulo}*\n`];
@@ -194,30 +143,26 @@ async function main() {
         partesRelatorio.push(`*${key}:* ${value}`);
     }
 
-    partesRelatorio.push(`\n*⚠️ Testes que falharam no Rerun:*\n${formatarListaFalhas(falhasRerun)}`);
+    partesRelatorio.push(`\n*⚠️ Testes que falharam (após retries):*\n${formatarListaFalhas(falhasFinais)}`);
     
-    partesRelatorio.push("\n*📌 Resultados por Arquivo (Execução Principal):*");
+    partesRelatorio.push("\n*📌 Resultados por Arquivo:*");
     if (Object.keys(dadosPorArquivo).length === 0) {
         partesRelatorio.push("Nenhum arquivo de teste foi processado.");
     } else {
         for (const [arquivo, info] of Object.entries(dadosPorArquivo)) {
             if (info.total > 0) {
-                const tempo = formatarTempo(info.elapsed);
                 partesRelatorio.push(
                     `\n- *Arquivo: \`${path.basename(arquivo)}\`*\n` +
                     `  • Total: ${info.total}\n` +
                     `  • Aprovados: ${info.passed}\n` +
                     `  • Falharam: ${info.failed}\n` +
-                    `  • Duração: ${tempo}`
+                    `  • Duração: ${formatarTempo(info.elapsed)}`
                 );
             }
         }
     }
 
-    partesRelatorio.push("\n*📊 Tempos de Execução:*");
-    for (const [key, value] of Object.entries(tempos)) {
-        partesRelatorio.push(`*${key}:* ${value}`);
-    }
+    partesRelatorio.push(`\n*📊 Tempo Total de Execução:* ${formatarTempo(tempoTotal_s)}`);
 
     const relatorioFinal = partesRelatorio.join('\n');
     
