@@ -92,7 +92,6 @@ function coletarDadosPorArquivo(suitesData) {
     return stats;
 }
 
-
 async function main() {
     const argv = yargs(hideBin(process.argv))
         .usage('Uso: node $0 <execucao_xml> [opções]')
@@ -122,7 +121,6 @@ async function main() {
     console.log("Processando arquivo de resultado...");
     const resultExecucao = parseXmlReport(argv.execucao_xml);
 
-    // Coletando estatísticas
     const totalTests = parseInt(resultExecucao.attr.tests, 10) || 0;
     const finalFailures = parseInt(resultExecucao.attr.failures, 10) || 0;
     const passedTests = totalTests - finalFailures;
@@ -130,7 +128,6 @@ async function main() {
     const dadosPorArquivo = coletarDadosPorArquivo(resultExecucao);
     const tempoTotal_s = parseFloat(resultExecucao.attr.time) || 0;
 
-    // Montando o corpo do relatório
     console.log("Montando o corpo do relatório...");
     const infoGerais = {
         "🚀 Qtd. Total de Testes": totalTests,

@@ -1,10 +1,9 @@
-// parser.js
 const fs = require('fs/promises');
 const { parseStringPromise } = require('xml2js');
 
 /**
- * Analisa o XML JUnit do Playwright, que contém todas as tentativas (retries).
- * @param {string} filePath - O caminho para o arquivo output.xml.
+ * 
+ * @param {string} filePath
  * @returns {Promise<object>}
  */
 async function processPlaywrightJUnit(filePath) {
@@ -13,7 +12,6 @@ async function processPlaywrightJUnit(filePath) {
         return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A", workers: 0 };
     }
 
-    // Tentar ler informações de workers do arquivo JSON
     let workers = 0;
     try {
         const jsonPath = filePath.replace('output.xml', 'test-results.json');
@@ -37,13 +35,11 @@ async function processPlaywrightJUnit(filePath) {
     }
 
     const allAttempts = [];
-    // Usar o tempo total do elemento raiz testsuites (tempo real de execução)
     const totalExecutionTime = parseFloat(result.testsuites.$.time || '0');
     const testsuites = result.testsuites.testsuite;
     const executionDate = new Date(testsuites[0].$.timestamp).toLocaleDateString('pt-BR');
 
     for (const suite of testsuites) {
-        // Removido: totalExecutionTime += parseFloat(suite.$.time || '0');
         if (!suite.testcase) continue;
 
         for (const testcase of suite.testcase) {
