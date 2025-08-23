@@ -10,26 +10,40 @@ const { parseStringPromise } = require('xml2js');
 async function processPlaywrightJUnit(filePath) {
     if (!await fs.access(filePath).then(() => true).catch(() => false)) {
         console.warn(`[AVISO] Arquivo não encontrado: ${filePath}. Retornando resultados vazios.`);
-        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A" };
+        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A", workers: 0 };
+    }
+
+    // Tentar ler informações de workers do arquivo JSON
+    let workers = 0;
+    try {
+        const jsonPath = filePath.replace('output.xml', 'test-results.json');
+        if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
+            const jsonContent = await fs.readFile(jsonPath, 'utf-8');
+            const jsonData = JSON.parse(jsonContent);
+            workers = jsonData?.config?.metadata?.actualWorkers || 0;
+        }
+    } catch (error) {
+        console.warn('[AVISO] Não foi possível ler informações de workers do arquivo JSON.');
     }
 
     const xmlContent = await fs.readFile(filePath, 'utf-8');
     if (!xmlContent) {
-        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A" };
+        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A", workers: 0 };
     }
 
     const result = await parseStringPromise(xmlContent);
     if (!result.testsuites || !result.testsuites.testsuite) {
-        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A" };
+        return { uniqueTests: [], stats: {}, totalTime: 0, executionDate: "N/A", workers: 0 };
     }
 
     const allAttempts = [];
-    let totalExecutionTime = 0;
+    // Usar o tempo total do elemento raiz testsuites (tempo real de execução)
+    const totalExecutionTime = parseFloat(result.testsuites.$.time || '0');
     const testsuites = result.testsuites.testsuite;
     const executionDate = new Date(testsuites[0].$.timestamp).toLocaleDateString('pt-BR');
 
     for (const suite of testsuites) {
-        totalExecutionTime += parseFloat(suite.$.time || '0');
+        // Removido: totalExecutionTime += parseFloat(suite.$.time || '0');
         if (!suite.testcase) continue;
 
         for (const testcase of suite.testcase) {
@@ -87,7 +101,7 @@ async function processPlaywrightJUnit(filePath) {
         finalFailures: finalFailures
     };
     
-    return { uniqueTests, stats, totalTime: totalExecutionTime, executionDate };
+    return { uniqueTests, stats, totalTime: totalExecutionTime, executionDate, workers };
 }
 
 module.exports = { processPlaywrightJUnit };

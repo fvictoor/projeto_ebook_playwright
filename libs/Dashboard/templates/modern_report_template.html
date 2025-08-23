@@ -179,6 +179,10 @@
                 <p class="value" style="color: var(--fail-color);">{{ final_failures }}</p>
                 <p class="label">Falhas Finais ({{ final_failures_percentage }}%)</p>
             </div>
+            <div class="summary-card">
+                <p class="value" style="color: var(--time-color-1);">{{ config_info.workers }}</p>
+                <p class="label">Workers Executados</p>
+            </div>
         </div>
         <div class="tabs">
             <button class="tab-button active" onclick="openTab(event, 'Dashboard')">Dashboard</button>
@@ -271,7 +275,11 @@
                 type: 'doughnut',
                 data: {
                     labels: statusData.labels,
-                    datasets: [{ data: statusData.data, backgroundColor: [successColor, recoveredColor, failColor], borderColor: 'var(--card-bg-color)' }]
+                    datasets: [{ 
+                        data: statusData.data, 
+                        backgroundColor: [successColor, recoveredColor, failColor], 
+                        borderWidth: 0
+                    }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
@@ -282,7 +290,9 @@
                             labels: {
                                 color: textColor,
                                 boxWidth: 15,
-                                padding: 25
+                                padding: 20,
+                                pointStyle: 'rect',
+                                usePointStyle: true
                             }
                         }
                     }
@@ -302,7 +312,16 @@
                     responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                     plugins: {
                         title: { display: true, text: 'Tempo de Execução por Suíte', color: textColor, font: { size: 16 } },
-                        legend: { display: false },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: textColor,
+                                boxWidth: 15,
+                                padding: 20,
+                                pointStyle: 'rect',
+                                usePointStyle: true
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 title: (tooltipItems) => originalSuiteTimeLabels[tooltipItems[0].dataIndex],
@@ -333,13 +352,15 @@
                     responsive: true, maintainAspectRatio: false,
                     plugins: {
                         title: { display: true, text: 'Resultados por Suíte', color: textColor, font: { size: 16 } },
-                        legend: { 
-                            position: 'bottom', 
-                            labels: { 
+                        legend: {
+                            position: 'bottom',
+                            labels: {
                                 color: textColor,
+                                boxWidth: 15,
+                                padding: 20,
                                 pointStyle: 'rect',
-                                usePointStyle: true,
-                            } 
+                                usePointStyle: true
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -367,7 +388,16 @@
                     responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                     plugins: {
                         title: { display: true, text: 'Top 10 Testes Mais Lentos', color: textColor, font: { size: 16 } },
-                        legend: { display: false },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: textColor,
+                                boxWidth: 15,
+                                padding: 20,
+                                pointStyle: 'rect',
+                                usePointStyle: true
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 title: (tooltipItems) => originalSlowestLabels[tooltipItems[0].dataIndex],

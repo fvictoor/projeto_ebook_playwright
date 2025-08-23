@@ -37,6 +37,11 @@ jobs:
         if: steps.playwright_tests.outcome == 'failure'
         run: npx playwright test --retries=2
 
+      - name: Gerar Dashboard Customizado
+        if: always()
+        run: |
+          node ./libs/Dashboard/main.js ./logs/results/output.xml
+
       - name: Fazer upload dos logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -44,6 +49,14 @@ jobs:
           name: playwright-logs
           path: ./logs 
           retention-days: 5
+
+      - name: Fazer upload do Dashboard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-dashboard
+          path: ./logs/dashboard_playwright.html
+          retention-days: 30
 
       - name: Enviar relatório para Webhook
         if: always()

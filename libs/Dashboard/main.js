@@ -15,7 +15,7 @@ function formatSecondsToHms(totalSeconds) {
 async function generateDashboard({ outputXml, suites: suitesToTrack, outputDir, filename, browser, resolution, frontendUrl, backendUrl }) {
     console.log("Iniciando geração do dashboard...");
     
-    const { uniqueTests, stats, totalTime, executionDate } = await processPlaywrightJUnit(outputXml);
+    const { uniqueTests, stats, totalTime, executionDate, workers } = await processPlaywrightJUnit(outputXml);
 
     if (!uniqueTests || uniqueTests.length === 0) {
         console.error(`ERRO FATAL: O arquivo '${outputXml}' não contém testes ou não pôde ser lido. Abortando.`);
@@ -108,7 +108,8 @@ async function generateDashboard({ outputXml, suites: suitesToTrack, outputDir, 
         suite_list: suiteListForTemplate,
         config_info: {
              browser: browser || 'Não disponível', resolution: resolution || 'Não disponível',
-             frontend_url: frontendUrl || 'Não disponível', backend_url: backendUrl || 'Não disponível'
+             frontend_url: frontendUrl || 'Não disponível', backend_url: backendUrl || 'Não disponível',
+             workers: workers || 'Não disponível'
         }
     });
 
@@ -134,7 +135,7 @@ const argv = yargs(hideBin(process.argv))
         default: '',
         type: 'string',
     })
-    .option('output-dir', { alias: 'd', describe: 'Pasta de destino para o relatório', default: '.', type: 'string' })
+    .option('output-dir', { alias: 'd', describe: 'Pasta de destino para o relatório', default: 'logs', type: 'string' })
     .option('filename', { alias: 'f', describe: 'Nome do arquivo HTML gerado', default: 'dashboard_playwright.html', type: 'string' })
     .option('browser', { describe: 'Nome do browser usado', type: 'string' })
     .option('resolution', { describe: 'Resolução da tela (ex: 1920x1080)', type: 'string' })
