@@ -32,10 +32,6 @@ jobs:
         id: playwright_tests
         run: npx playwright test
         continue-on-error: true
-      
-      - name: Retry testes com falha
-        if: steps.playwright_tests.outcome == 'failure'
-        run: npx playwright test --retries=2
 
       - name: Gerar Dashboard Customizado
         if: always()
