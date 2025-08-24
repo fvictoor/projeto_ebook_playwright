@@ -48,12 +48,14 @@ async function processPlaywrightJUnit(filePath) {
                 classname: testcase.$.classname,
                 name: testcase.$.name,
                 time: parseFloat(testcase.$.time || '0'),
+                hostname: suite.$.hostname || 'unknown',
                 status: testcase.failure || testcase.error ? 'FAIL' : 'PASS',
                 message: testcase.failure ? (testcase.failure[0]._ || testcase.failure[0].$.message) : '',
             });
         }
     }
 
+    // Agrupar testes por nome único (independente do browser)
     const testsGroupedByName = allAttempts.reduce((acc, attempt) => {
         const key = `${attempt.classname} | ${attempt.name}`;
         if (!acc[key]) acc[key] = [];
@@ -62,24 +64,33 @@ async function processPlaywrightJUnit(filePath) {
     }, {});
 
     const uniqueTests = Object.values(testsGroupedByName).map(attempts => {
-        const lastAttempt = attempts[attempts.length - 1];
-        const firstAttempt = attempts[0];
-        const hasFailedAttempts = attempts.some(a => a.status === 'FAIL');
-        const isRecovered = lastAttempt.status === 'PASS' && hasFailedAttempts;
-
-        const failureMessages = attempts
-            .filter(a => a.status === 'FAIL' && a.message)
-            .map((a, i) => `Tentativa ${i + 1}:\n${a.message.trim()}`)
+        // Para multibrowser, consideramos o teste como aprovado se passou em pelo menos um browser
+        const passedAttempts = attempts.filter(a => a.status === 'PASS');
+        const failedAttempts = attempts.filter(a => a.status === 'FAIL');
+        
+        const finalStatus = passedAttempts.length > 0 ? 'PASS' : 'FAIL';
+        const isRecovered = failedAttempts.length > 0 && passedAttempts.length > 0;
+        const passedOnFirstTry = attempts.every(a => a.status === 'PASS');
+        
+        // Usar o tempo médio entre os browsers
+        const avgTime = attempts.reduce((sum, a) => sum + a.time, 0) / attempts.length;
+        
+        // Coletar informações dos browsers
+        const browsers = [...new Set(attempts.map(a => a.hostname))];
+        
+        const failureMessages = failedAttempts
+            .map(a => `Browser ${a.hostname}: ${a.message.trim()}`)
             .join('\n\n');
 
         return {
-            name: lastAttempt.name,
-            suite: lastAttempt.suite,
-            finalStatus: lastAttempt.status,
+            name: attempts[0].name,
+            suite: attempts[0].suite,
+            finalStatus: finalStatus,
             isRecovered: isRecovered,
-            passedOnFirstTry: firstAttempt.status === 'PASS',
-            elapsed: lastAttempt.time,
-            doc: `Arquivo: ${lastAttempt.classname}`,
+            passedOnFirstTry: passedOnFirstTry,
+            elapsed: avgTime,
+            browsers: browsers,
+            doc: `Arquivo: ${attempts[0].classname}`,
             message: failureMessages
         };
     });

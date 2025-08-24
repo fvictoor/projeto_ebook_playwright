@@ -29,7 +29,8 @@ export class SubmitHome {
 
     async verificarMensagem(mensagem, sucesso) {
         if (sucesso) {
-            await this.page.getByRole('link', { name: mensagem })
+            const linkLocator = this.page.getByRole('link', { name: mensagem })
+            await expect(linkLocator).toBeVisible()
         } else {
             const alertLocator = this.page.getByRole('alert').getByText(mensagem, { exact: true })
             await expect(alertLocator).toHaveText(mensagem);

@@ -159,7 +159,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Dashboard de Execução</h1>
+            <h1>Dashboard de Execução de Testes</h1>
             <p><strong>Data:</strong> {{ execution_date }} | <strong>Tempo Total:</strong> {{ total_execution_time }}</p>
         </header>
         <div class="summary-grid">
@@ -213,6 +213,9 @@
                                     <span class="fail">❌ Reprovado</span>
                                 {% endif %}
                                 — ⏱️ {{ test.elapsed }}
+                                {% if test.browsers %}
+                                — 🌐 {{ test.browsers | join(', ') }}
+                                {% endif %}
                             </div>
                         </div>
                         {% if test.message and test.status == 'FAIL' %}
@@ -226,8 +229,17 @@
         </div>
         <div id="Configuracoes" class="tab-content">
             <div id="config-info">
-                <p><strong>Browser:</strong> {{ config_info.browser }}</p>
-                <p><strong>Resolução:</strong> {{ config_info.resolution }}</p>
+                <p><strong>Browsers:</strong> {{ config_info.executedBrowsers | join(', ') | title }}</p>
+                <p><strong>Devices:</strong> {{ config_info.configuredDevices | join(', ') }}</p>
+                <p><strong>Resoluções:</strong>
+                    {% if config_info.browserResolutionsList | length > 0 %}
+                        {% for item in config_info.browserResolutionsList %}
+                            {{ item.name | title }}: {{ item.resolution }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {{ config_info.resolution }}
+                    {% endif %}
+                </p>
                 <p><strong>URL Frontend:</strong> {{ config_info.frontend_url }}</p>
                 <p><strong>URL Backend:</strong> {{ config_info.backend_url }}</p>
             </div>

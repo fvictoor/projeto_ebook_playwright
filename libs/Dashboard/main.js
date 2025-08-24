@@ -1,9 +1,8 @@
 const path = require('path');
 const fs = require('fs/promises');
 const nunjucks = require('nunjucks');
-const yargs = require('yargs/yargs');
-const { hideBin } = require('yargs/helpers');
 const { processPlaywrightJUnit } = require('./parser');
+const { generateConfig } = require('./config');
 
 function formatSecondsToHms(totalSeconds) {
     if (isNaN(totalSeconds)) return "00:00:00";
@@ -11,8 +10,10 @@ function formatSecondsToHms(totalSeconds) {
     return new Date(sec * 1000).toISOString().substr(11, 8);
 }
 
-async function generateDashboard({ outputXml, suites: suitesToTrack, outputDir, filename, browser, resolution, frontendUrl, backendUrl }) {
-    console.log("Iniciando geração do dashboard...");
+async function generateDashboard(outputXml, customConfig = {}) {
+    // Gera configuração automática baseada no projeto
+    const autoConfig = generateConfig(outputXml);
+    const config = { ...autoConfig, ...customConfig };
     
     const { uniqueTests, stats, totalTime, executionDate, workers } = await processPlaywrightJUnit(outputXml);
 
@@ -27,8 +28,8 @@ async function generateDashboard({ outputXml, suites: suitesToTrack, outputDir, 
     const recovered_percentage = initialFailures > 0 ? ((recovered / initialFailures) * 100).toFixed(2) : "0.00";
     const final_failures_percentage = total > 0 ? ((finalFailures / total) * 100).toFixed(2) : "0.00";
     
+    let suitesToTrack = config.suites || [];
     if (suitesToTrack.length === 0) {
-        console.log("[INFO] Nenhuma suíte especificada. O gráfico 'Resultados por Suíte' mostrará todas as suítes.");
         const allSuiteNames = [...new Set(uniqueTests.map(test => test.suite))];
         suitesToTrack = allSuiteNames;
     }
@@ -106,48 +107,82 @@ async function generateDashboard({ outputXml, suites: suitesToTrack, outputDir, 
         slowest_tests_chart_data_json: JSON.stringify(slowestTestsChartData),
         suite_list: suiteListForTemplate,
         config_info: {
-             browser: browser || 'Não disponível', resolution: resolution || 'Não disponível',
-             frontend_url: frontendUrl || 'Não disponível', backend_url: backendUrl || 'Não disponível',
+             executedBrowsers: config.executedBrowsers || ['Não disponível'],
+             configuredDevices: config.configuredDevices || ['Não disponível'],
+             resolution: config.resolution || 'Não disponível',
+             browserResolutions: config.browserResolutions || {},
+             browserResolutionsList: Object.keys(config.browserResolutions || {}).map(browser => ({
+                 name: browser,
+                 resolution: config.browserResolutions[browser]
+             })),
+             frontend_url: config.frontendUrl || 'Não disponível', 
+             backend_url: config.backendUrl || 'Não disponível',
              workers: workers || 'Não disponível'
         }
     });
 
-    await fs.mkdir(outputDir, { recursive: true });
-    const finalFilename = filename.toLowerCase().endsWith('.html') ? filename : `${filename}.html`;
-    const outputPath = path.join(outputDir, finalFilename);
+    await fs.mkdir(config.outputDir, { recursive: true });
+    const finalFilename = config.filename.toLowerCase().endsWith('.html') ? config.filename : `${config.filename}.html`;
+    const outputPath = path.join(config.outputDir, finalFilename);
     await fs.writeFile(outputPath, html, 'utf-8');
-
-    console.log(`✅ Dashboard customizado gerado: ${path.resolve(outputPath)}`);
 }
 
-const argv = yargs(hideBin(process.argv))
-    .usage('Uso: node $0 <outputXml> [opções]')
-    .command('$0 <outputXml>', 'Gera o dashboard a partir do XML do Playwright', (yargs) => {
-        yargs.positional('outputXml', {
-            describe: 'Caminho para o arquivo results.xml principal',
-            type: 'string',
-        })
-    })
-    .option('suites', {
-        alias: 's',
-        describe: 'Lista de suítes para destacar no gráfico, separadas por vírgula',
-        default: '',
-        type: 'string',
-    })
-    .option('output-dir', { alias: 'd', describe: 'Pasta de destino para o relatório', default: 'logs', type: 'string' })
-    .option('filename', { alias: 'f', describe: 'Nome do arquivo HTML gerado', default: 'dashboard_playwright.html', type: 'string' })
-    .option('browser', { describe: 'Nome do browser usado', type: 'string' })
-    .option('resolution', { describe: 'Resolução da tela (ex: 1920x1080)', type: 'string' })
-    .option('frontendUrl', { describe: 'URL do ambiente de Frontend', type: 'string' })
-    .option('backendUrl', { describe: 'URL do ambiente de Backend', type: 'string' })
-    .demandCommand(1, 'Você precisa fornecer o caminho para o arquivo XML.')
-    .help()
-    .argv;
+// Função principal
+function main() {
+    const args = process.argv.slice(2);
+    
+    // Se nenhum argumento for fornecido, usa o caminho padrão
+    let xmlPath = args[0] || './logs/results/output.xml';
+    
+    // Resolve o caminho relativo
+    if (!path.isAbsolute(xmlPath)) {
+        xmlPath = path.resolve(process.cwd(), xmlPath);
+    }
+    
+    // Permite sobrescrever configurações via argumentos (opcional)
+    const customConfig = {};
+    
+    // Processa argumentos nomeados opcionais
+    for (let i = 1; i < args.length; i += 2) {
+        const key = args[i]?.replace(/^--/, '');
+        const value = args[i + 1];
+        
+        if (key && value) {
+            switch (key) {
+                case 'output-dir':
+                    customConfig.outputDir = value;
+                    break;
+                case 'filename':
+                    customConfig.filename = value;
+                    break;
+                case 'browser':
+                    customConfig.browser = value;
+                    break;
+                case 'resolution':
+                    customConfig.resolution = value;
+                    break;
+                case 'frontend-url':
+                    customConfig.frontendUrl = value;
+                    break;
+                case 'backend-url':
+                    customConfig.backendUrl = value;
+                    break;
+                case 'suites':
+                    customConfig.suites = value.split(',').map(s => s.trim());
+                    break;
+            }
+        }
+    }
+    
+    generateDashboard(xmlPath, customConfig).catch(err => {
+        console.error('❌ Erro ao gerar dashboard:', err);
+        process.exit(1);
+    });
+}
 
-generateDashboard({
-    ...argv,
-    suites: argv.suites.split(',').map(s => s.trim()).filter(Boolean),
-}).catch(err => {
-    console.error("Ocorreu um erro inesperado:", err);
-    process.exit(1);
-});
+// Executa apenas se for chamado diretamente
+if (require.main === module) {
+    main();
+}
+
+module.exports = { generateDashboard };

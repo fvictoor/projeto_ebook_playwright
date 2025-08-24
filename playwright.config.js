@@ -29,16 +29,18 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['FHD - Chrome'],
+        viewport: { width: 1920, height: 1080 }
+      },
     },
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+    {
+      name: 'firefox',
+      use: { 
+        ...devices['FHD - Firefox'],
+        viewport: { width: 1920, height: 1080 }
+      },
+    },
   ],
 
   // webServer: {
