@@ -185,7 +185,7 @@ O arquivo `playwright.config.js` contém as seguintes configurações:
 
 
 ## 🎨 Dashboard Customizado
-
+![Dashboard demo](https://github.com/fvictoor/projeto_ebook_playwright/blob/main/dashboard.png?raw=true)
 O projeto inclui um gerador de dashboard personalizado que:
 - Processa resultados XML do Playwright
 - Gera visualizações interativas
